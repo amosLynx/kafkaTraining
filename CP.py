@@ -16,45 +16,47 @@ confc = {'bootstrap.servers': "localhost:9092",
 
 consumer = Consumer(confc)
 
+SINK_TOPIC = "newUsers"
+SOURCE_TOPIC = ["users"]
 
-running = True
-
+#Handle producer Errors
 def send_Callback(err,msg):
     if err is not None:
         print(f"message delivery failed {err}")
     else:
          print(f"{msg.topic()}, {msg.key()}, {msg.value()}")
 
-def basic_consume_loop(consumer, topic):
+def basic_consume_loop(consumer):
     try:
-        consumer.subscribe(topic)
+        consumer.subscribe(SOURCE_TOPIC)
 
-        while running:
-            msg = consumer.poll(timeout=1.0)
+        while True:
+            msg = consumer.poll(timeout=1.0) #keep polling for new messages
 
             if msg is None:
-                continue
+                continue #skip iteration if message is empty
     
             if msg.error():
                 if msg.error().code() == KafkaError._PARTITION_EOF:
                     # End of partition event
                     print('%% %s [%d] reached end at offset %d\n' %
                                      (msg.topic(), msg.partition(), msg.offset()))
-                elif msg.error():
-                    raise KafkaException(msg.error())
-            else:
-                #Consume cyle
+                    continue #skip this iteration in case of error
 
-                #get message value and add age 
-                NeWmsg = json.loads(msg.value().decode('utf-8'))
-                NeWmsg["Age"]= random.randint(14,80)
-                #print(f"User: {msg.key().decode('utf-8')}, {msg.value().decode('utf-8')}")
-                
-                #Produce cycle
-                NeWmsg = json.dumps(NeWmsg).encode('utf-8')
-                producer.produce("newUsers", key=msg.key(), value= NeWmsg, on_delivery=send_Callback)
-                # Wait up to 1 second for events.
-                producer.poll(1.0)
+                elif msg.error():
+                    raise KafkaException(msg.error()) #raise exception and exit
+                    
+            #Consume cyle
+
+            #get message value and add age 
+            newMsg = json.loads(msg.value().decode('utf-8'))
+            newMsg["Age"]= random.randint(14,80)
+            
+            #Produce cycle
+            newMsg = json.dumps(newMsg).encode('utf-8')
+            producer.produce(SINK_TOPIC, key=msg.key(), value= newMsg, on_delivery=send_Callback)
+            # Wait up to 1 second for events.
+            producer.poll(1.0)
 
     except KeyboardInterrupt:
         print("stopped")
@@ -63,11 +65,5 @@ def basic_consume_loop(consumer, topic):
         producer.flush()
 
 
-def shutdown():
-    running = False
-
-
 if __name__ == "__main__":
-    topic = ["users"]
-    basic_consume_loop(consumer,topic)
-    shutdown()
+    basic_consume_loop(consumer)
