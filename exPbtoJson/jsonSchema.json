@@ -1,0 +1,21 @@
+{
+    "fields": [
+      {
+        "name": "registertime",
+        "type": "long"
+      },
+      {
+        "name": "userid",
+        "type": "string"
+      },
+      {
+        "name": "regionid",
+        "type": "string"
+      },
+      {
+        "name": "gender",
+        "type": "string"
+      }
+    ],
+    "name": "topic_62-value"
+  }
