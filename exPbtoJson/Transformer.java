@@ -46,8 +46,7 @@ public class Transformer {
          KStream<byte[], UserMessage.users> protobufStream = builder.stream(topic_Protobuf, Consumed.with(Serdes.ByteArray(), protobufSerde));
 
          // Convert Protobuf to JSON
-         protobufStream.mapValues(protobufData -> {
-             // Convert protobufData to JSON here using your preferred method 
+         protobufStream.mapValues(protobufData -> { 
              ObjectMapper objectMapper = new ObjectMapper();
              String jsonString="NUN";
             try {
