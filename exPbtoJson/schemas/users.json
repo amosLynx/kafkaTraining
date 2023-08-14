@@ -1,0 +1,22 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "$ref": "#/definitions/Users",
+    "definitions": {
+        "Users": {
+            "properties": {
+                "registertime": {
+                    "type": "integer"
+                },
+                "userid": {
+                    "type": "string"
+                },
+                "regionid": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}
