@@ -3,6 +3,7 @@ package com.ex;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -19,6 +20,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 public class ProdConEOS {
     private static final Logger log = LoggerFactory.getLogger(ProdConEOS.class);
@@ -85,7 +87,7 @@ public class ProdConEOS {
                     ProducerRecord<String, String> producerRecord = new ProducerRecord<>(sinkTopic, record.key(),
                             record.value());
                     // commit the consumer record and send to new topic
-                    CommitAndProcess(producer, consumer, record, producerRecord);
+                    commitAndProcess(producer, consumer, record, producerRecord);
 
                     // log.info("Key: " + record.key() + ", Value: " + record.value());
                     // log.info("Partition: " + record.partition() + ", Offset:" + record.offset());
@@ -100,14 +102,20 @@ public class ProdConEOS {
             // flush and close producer
             producer.close();
 
-            consumer.close(); 
+            consumer.close();
             log.info("The consumer is now gracefully closed.");
         }
     }
 
-    private static void CommitAndProcess(KafkaProducer<String, String> producer,
+    private static void commitAndProcess(KafkaProducer<String, String> producer,
             final KafkaConsumer<String, String> consumer, ConsumerRecord<String, String> record,
             ProducerRecord<String, String> producerRecord) {
+
+        boolean sendSuccess = false;
+
+        int retrylimit = 5; //try and resend a message max 5 times
+
+        RecordMetadata metadata = new RecordMetadata(null, 0, 0, 0, 0, 0);
 
         TopicPartition partition = new TopicPartition(record.topic(), record.partition()); // Get record topic and its
                                                                                            // partition
@@ -117,8 +125,24 @@ public class ProdConEOS {
                                                                                // the current record
         Map<TopicPartition, OffsetAndMetadata> offsetMap = Collections.singletonMap(partition, offset);
 
+        while (!sendSuccess) {
+            if (retrylimit != 0) {
+                try {
+                    metadata = producer.send(producerRecord).get(); // block
+                    sendSuccess = true;
+                } catch (InterruptedException | ExecutionException e) {
+                    retrylimit--;
+                    log.info(e.getMessage());
+                    log.info("Producing message with offeset "+metadata.offset()+" to topic "+metadata.topic()+" failed. "+retrylimit+" retries left ");
+                }
+            }else{
+                log.info("retry limit past! on offset: "+metadata.offset()+ "timestamp: "+metadata.timestamp());
+                break;
+            }
+         
+        }
+
         consumer.commitSync(offsetMap);
-        // send data - asynchronous
-        producer.send(producerRecord);
+
     }
 }
